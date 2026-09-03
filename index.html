@@ -1,0 +1,1275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NIFTY 50 Trading & Capital Command Center | Universal Live Hub</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SheetJS for local Excel parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #0B0F17; color: #F1F5F9; -webkit-tap-highlight-color: transparent; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        .card { background: #131B2A; border: 1px solid #1E293B; border-radius: 14px; }
+        .stat-card { background: linear-gradient(145deg, #131B2E 0%, #0F172A 100%); border: 1px solid #1E2D4A; }
+        .glass-header { background: rgba(19, 27, 42, 0.94); backdrop-filter: blur(14px); border-bottom: 1px solid #1E293B; }
+        .badge-win { background: rgba(22, 163, 74, 0.15); color: #4ADE80; border: 1px solid rgba(74, 222, 128, 0.3); }
+        .badge-loss { background: rgba(220, 38, 38, 0.15); color: #F87171; border: 1px solid rgba(248, 113, 113, 0.3); }
+        .tab-btn.active { background-color: #2563EB; color: #FFFFFF; font-weight: 600; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35); }
+        .pulse-live { animation: pulseGreen 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulseGreen { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .4; transform: scale(1.15); } }
+        .editable-cell { cursor: pointer; transition: all 0.2s; border-radius: 6px; padding: 2px 4px; }
+        .editable-cell:hover { background-color: rgba(37, 99, 235, 0.25); outline: 1px dashed #3B82F6; }
+        .editable-kpi { cursor: pointer; border-radius: 4px; padding-left: 2px; padding-right: 2px; }
+        .editable-kpi:hover { background-color: rgba(255, 255, 255, 0.1); border-bottom: 1px dashed #94A3B8; }
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: #0B0F17; }
+        ::-webkit-scrollbar-thumb { background: #1E293B; border-radius: 4px; }
+        
+        /* Larger Trade Table Fonts */
+        .large-table th { font-size: 0.85rem; padding-top: 0.75rem; padding-bottom: 0.75rem; }
+        .large-table td { font-size: 0.95rem; padding-top: 0.75rem; padding-bottom: 0.75rem; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased">
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-semibold shadow-2xl flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+        <span id="toastMsg">Synced successfully!</span>
+    </div>
+
+    <!-- Header -->
+    <header class="sticky top-0 z-50 glass-header px-2 sm:px-3 py-2 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+            <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-cyan-500 flex items-center justify-center font-bold text-white shadow-lg shadow-blue-500/25 text-sm sm:text-base font-mono flex-shrink-0">N50</div>
+            <div>
+                <div class="flex items-center gap-2">
+                    <h1 class="text-sm sm:text-base font-bold text-white tracking-wide">NIFTY 50 LIVE TRADING HUB</h1>
+                    <span id="syncBadge" class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-semibold bg-emerald-950/60 text-emerald-400 border border-emerald-600/40">
+                        <span id="syncDot" class="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-400 pulse-live"></span>
+                        <span id="syncText">Live Ready</span>
+                    </span>
+                </div>
+                <p class="text-[10px] sm:text-xs text-slate-400">Universal Edge-to-Edge Layout</p>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+            <button onclick="openTradeModal()" class="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded-xl transition shadow-lg shadow-emerald-600/25">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                <span>+ Log Trade</span>
+            </button>
+            <label class="flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 text-white text-xs font-semibold rounded-xl cursor-pointer transition shadow-lg shadow-blue-600/30">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
+                <span>📂 Sync Excel</span>
+                <input type="file" id="masterExcelInput" accept=".xlsx, .xls" class="hidden" />
+            </label>
+            <button onclick="exportFullExcel()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-xl border border-slate-700 transition flex items-center gap-1">
+                <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                <span>Save Excel</span>
+            </button>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="w-full flex items-center p-1 bg-slate-900/90 rounded-xl border border-slate-800 text-xs text-slate-400 overflow-x-auto gap-1">
+            <button onclick="switchTab('tab-trading')" id="nav-trading" class="tab-btn active px-3 py-1.5 rounded-lg transition whitespace-nowrap">Scalping Journal</button>
+            <button onclick="switchTab('tab-planning')" id="nav-planning" class="tab-btn px-3 py-1.5 rounded-lg transition whitespace-nowrap">Monthly Compounding & Rotation</button>
+            <button onclick="switchTab('tab-portfolio')" id="nav-portfolio" class="tab-btn px-3 py-1.5 rounded-lg transition whitespace-nowrap">Holdings & Assets</button>
+            <button onclick="switchTab('tab-library')" id="nav-library" class="tab-btn px-3 py-1.5 rounded-lg transition whitespace-nowrap flex items-center gap-1">📚 Knowledge & Books</button>
+            <button onclick="switchTab('tab-checklist')" id="nav-checklist" class="tab-btn px-3 py-1.5 rounded-lg transition whitespace-nowrap">Checklist</button>
+        </div>
+    </header>
+
+    <main class="flex-1 p-2 sm:p-3 w-full space-y-3">
+        
+        <!-- Editable KPI Ribbon -->
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-2">
+            <div class="stat-card p-3.5 sm:p-4 rounded-xl">
+                <p class="text-[10px] sm:text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Starting Capital</p>
+                <p class="text-base sm:text-lg font-bold text-white mt-0.5 font-mono"><span id="kpiStartingCap" class="editable-kpi" onclick="editKPI('startCap')" title="Click to edit">₹40,000.00</span></p>
+                <p class="text-[9px] sm:text-[10px] text-blue-400 mt-0.5">Base Capital Pool (N)</p>
+            </div>
+            <div class="stat-card p-3.5 sm:p-4 rounded-xl">
+                <p class="text-[10px] sm:text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Live Active Balance</p>
+                <p class="text-base sm:text-lg font-bold text-emerald-400 mt-0.5 font-mono"><span id="kpiActiveBal" class="editable-kpi" onclick="editKPI('activeBal')" title="Click to edit">₹42,755.00</span></p>
+                <p id="kpiActiveBalGrowth" class="text-[9px] sm:text-[10px] text-emerald-500 mt-0.5 font-mono">+6.89% Growth</p>
+            </div>
+            <div class="stat-card p-3.5 sm:p-4 rounded-xl">
+                <p class="text-[10px] sm:text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Realized Net P&L</p>
+                <p class="text-base sm:text-lg font-bold text-emerald-400 mt-0.5 font-mono"><span id="kpiRealizedPnl" class="editable-kpi" onclick="editKPI('pnl')" title="Click to edit">+₹2,755.00</span></p>
+                <p id="kpiTargetPacing" class="text-[9px] sm:text-[10px] text-slate-400 mt-0.5">68.9% of ₹4k Target</p>
+            </div>
+            <div class="stat-card p-3.5 sm:p-4 rounded-xl">
+                <p class="text-[10px] sm:text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Strategy Win Rate</p>
+                <p class="text-base sm:text-lg font-bold text-white mt-0.5 font-mono"><span id="kpiWinRate" class="editable-kpi" onclick="editKPI('winRate')" title="Click to edit">100.0%</span></p>
+                <p id="kpiTradeStats" class="text-[9px] sm:text-[10px] text-slate-400 mt-0.5 font-mono">3 Win / 0 Loss</p>
+            </div>
+            <div class="stat-card p-3.5 sm:p-4 rounded-xl">
+                <p class="text-[10px] sm:text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Avg Points / Win</p>
+                <p class="text-base sm:text-lg font-bold text-emerald-400 mt-0.5 font-mono"><span id="kpiAvgWinPts" class="editable-kpi" onclick="editKPI('avgPts')" title="Click to edit">+7.33 Pts</span></p>
+                <p class="text-[9px] sm:text-[10px] text-slate-400 mt-0.5">Target: 5–13+ Pts</p>
+            </div>
+            <div class="stat-card p-3.5 sm:p-4 rounded-xl">
+                <p class="text-[10px] sm:text-[11px] font-semibold text-slate-400 uppercase tracking-wider">1-Yr Target Goal (2x Cap)</p>
+                <p class="text-base sm:text-lg font-bold mt-0.5 font-mono"><span id="kpiMilestoneRemaining" class="editable-kpi text-rose-500 font-bold" onclick="editKPI('target')" title="Click to edit">₹37,245.00</span></p>
+                <p id="kpiTargetFull" class="text-[9px] sm:text-[10px] text-slate-400 mt-0.5">Goal: ₹80,000</p>
+            </div>
+        </div>
+
+        <!-- TAB 1: SCALPING JOURNAL -->
+        <div id="tab-trading" class="space-y-3">
+            <!-- Increased Font Live Trade Table (Centered Focus) -->
+            <div class="card p-4 sm:p-5 flex flex-col shadow-xl">
+                <div class="flex flex-wrap items-center justify-between mb-3 gap-2 border-b border-slate-800 pb-2">
+                    <div>
+                        <h2 class="text-base sm:text-lg font-bold text-white uppercase tracking-wider">Live Scalping Trade Log</h2>
+                        <p class="text-[11px] text-slate-400 mt-0.5">Real-time trades synced. Full-screen view enabled.</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <select id="filterDirection" onchange="applyFilters()" class="bg-slate-900 border border-slate-700 text-xs sm:text-sm rounded-lg px-3 py-1.5 text-slate-300">
+                            <option value="ALL">All Sides</option>
+                            <option value="BUY">BUY Only</option>
+                            <option value="SELL">SELL Only</option>
+                        </select>
+                        <button onclick="openTradeModal()" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-lg transition shadow-md shadow-blue-600/30">
+                            + Add Entry
+                        </button>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-slate-300 large-table">
+                        <thead class="bg-slate-800/60 text-slate-400 uppercase tracking-wider border-b border-slate-800">
+                            <tr>
+                                <th class="px-4 whitespace-nowrap">Date</th>
+                                <th class="px-4 whitespace-nowrap">Strike</th>
+                                <th class="px-4 whitespace-nowrap">Side</th>
+                                <th class="px-4 text-right whitespace-nowrap">Qty</th>
+                                <th class="px-4 text-right whitespace-nowrap">Entry</th>
+                                <th class="px-4 text-right whitespace-nowrap">SL</th>
+                                <th class="px-4 text-right whitespace-nowrap">Exit</th>
+                                <th class="px-4 text-right whitespace-nowrap">Pts</th>
+                                <th class="px-4 text-right whitespace-nowrap">Charges</th>
+                                <th class="px-4 text-right whitespace-nowrap">Net P&L</th>
+                                <th class="px-4 text-center whitespace-nowrap">Result</th>
+                                <th class="px-3 text-center whitespace-nowrap">Act</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tradeLogTableBody" class="divide-y divide-slate-800/60 font-mono">
+                            <!-- Injected dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Compact Charts at Bottom -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                <div class="card p-4 flex flex-col justify-between">
+                    <div class="flex items-center justify-between mb-2">
+                        <div>
+                            <h2 class="text-xs sm:text-sm font-bold text-white uppercase tracking-wider">Equity Curve</h2>
+                            <p class="text-[10px] text-slate-400">Progression vs Target</p>
+                        </div>
+                    </div>
+                    <div class="h-40 sm:h-48 relative">
+                        <canvas id="equityChart"></canvas>
+                    </div>
+                </div>
+                <div class="card p-4 flex flex-col justify-between">
+                    <div>
+                        <h2 class="text-xs sm:text-sm font-bold text-white uppercase tracking-wider">Session Variance</h2>
+                        <p class="text-[10px] text-slate-400">vs ₹400 Daily Goal</p>
+                    </div>
+                    <div class="h-40 sm:h-48 relative my-auto">
+                        <canvas id="dailyVarianceChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===================================================================== -->
+        <!-- TAB 2: MONTHLY COMPOUNDING & ROTATION (WITH WEEKLY KPI & CUMULATIVE SYNC) -->
+        <!-- ===================================================================== -->
+        <div id="tab-planning" class="hidden space-y-3">
+            
+            <!-- Page 2 Header Cards: Weekly Profit KPI & Rotation Allocation Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+                <!-- Weekly Profit KPI (Based on Scalping Journal Trades) -->
+                <div class="stat-card p-4 rounded-xl border border-indigo-500/40 relative">
+                    <div class="flex justify-between items-start">
+                        <p class="text-[11px] font-semibold text-indigo-400 uppercase tracking-wider">Weekly Scalping Profit</p>
+                        <span class="text-[10px] px-2 py-0.5 bg-indigo-500/20 text-indigo-300 rounded font-mono">7-Day Live</span>
+                    </div>
+                    <p class="text-xl font-bold text-white mt-1 font-mono"><span id="kpiWeeklyProfit" class="editable-kpi" onclick="editKPI('weekly')" title="Click to edit weekly profit">₹2,755.00</span></p>
+                    <p id="kpiWeeklyTradesInfo" class="text-[10px] text-slate-400 mt-1">Calculated from 3 Scalping Trades</p>
+                </div>
+
+                <!-- 40% Trading Pool -->
+                <div class="stat-card p-4 rounded-xl border border-blue-500/30">
+                    <div class="flex justify-between items-start">
+                        <p class="text-[11px] font-semibold text-blue-400 uppercase tracking-wider">1. Trading Pool (40%)</p>
+                        <span class="text-[10px] text-blue-300 font-mono">40% of N</span>
+                    </div>
+                    <p class="text-xl font-bold text-blue-400 mt-1 font-mono"><span id="calcRotationPool" class="editable-kpi" onclick="editPool('trading')" title="Click to edit pool">₹16,000.00</span></p>
+                    <p class="text-[10px] text-slate-400 mt-1">Active Scalping Margin</p>
+                </div>
+
+                <!-- 50% Fixed Income Pool -->
+                <div class="stat-card p-4 rounded-xl border border-emerald-500/30">
+                    <div class="flex justify-between items-start">
+                        <p class="text-[11px] font-semibold text-emerald-400 uppercase tracking-wider">2. Fixed / Inv (50%)</p>
+                        <span class="text-[10px] text-emerald-300 font-mono">50% of N</span>
+                    </div>
+                    <p class="text-xl font-bold text-emerald-400 mt-1 font-mono"><span id="calcFixedPool" class="editable-kpi" onclick="editPool('fixed')" title="Click to edit pool">₹20,000.00</span></p>
+                    <p class="text-[10px] text-slate-400 mt-1">Earns 8% p.a. Fixed Yield</p>
+                </div>
+
+                <!-- 10% Cash Reserve Pool -->
+                <div class="stat-card p-4 rounded-xl border border-amber-500/30">
+                    <div class="flex justify-between items-start">
+                        <p class="text-[11px] font-semibold text-amber-400 uppercase tracking-wider">3. Cash Reserve (10%)</p>
+                        <span class="text-[10px] text-amber-300 font-mono">10% of N</span>
+                    </div>
+                    <p class="text-xl font-bold text-amber-400 mt-1 font-mono"><span id="calcReservePool" class="editable-kpi" onclick="editPool('reserve')" title="Click to edit pool">₹4,000.00</span></p>
+                    <p class="text-[10px] text-slate-400 mt-1">Liquid Drawdown Cushion</p>
+                </div>
+            </div>
+
+            <!-- Projected Annual Returns Summary Banner (Formula based on Starting Capital N) -->
+            <div class="p-3 rounded-xl bg-slate-900/90 border border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
+                <div class="flex flex-wrap items-center gap-6">
+                    <div>
+                        <span class="text-slate-400">Base Capital (N):</span>
+                        <strong id="planBaseCapLabel" class="text-white font-mono ml-1.5 editable-kpi" onclick="editKPI('startCap')">₹40,000.00</strong>
+                    </div>
+                    <div>
+                        <span class="text-slate-400">Projected Annual Trading (10%/mo × 12):</span>
+                        <strong id="projAnnualTrading" class="text-blue-400 font-mono ml-1.5 editable-kpi" onclick="editProjected('trading')">₹48,000.00</strong>
+                    </div>
+                    <div>
+                        <span class="text-slate-400">Fixed Income (8% on 50% N):</span>
+                        <strong id="projAnnualFixed" class="text-emerald-400 font-mono ml-1.5 editable-kpi" onclick="editProjected('fixed')">₹1,600.00</strong>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-slate-400">Overall Annual Projected ROI:</span>
+                    <strong id="projTotalROI" class="text-emerald-400 font-mono text-sm bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20">124.0% (₹49,600.00)</strong>
+                </div>
+            </div>
+
+            <!-- Simulator Section with Sliders & Cumulative Monthly Chart -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-3">
+                <div class="card p-4 sm:p-5 lg:col-span-2 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-xs sm:text-sm font-bold text-white uppercase tracking-wider">Growth Simulator & Monthly Cumulative Balance Chart</h2>
+                            <p class="text-[11px] text-slate-400">Includes all scalping journal cumulative trade profits synced automatically</p>
+                        </div>
+                        <span class="px-2 py-0.5 text-[10px] font-mono bg-emerald-500/10 text-emerald-400 rounded-md border border-emerald-500/20">Live Sync</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 p-3 rounded-xl bg-slate-900/80 border border-slate-800">
+                        <div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span class="text-slate-400">Monthly Target:</span>
+                                <span id="lblMonthlyTargetPct" class="font-bold text-blue-400 font-mono">10%</span>
+                            </div>
+                            <input id="sliderMonthlyPct" type="range" min="5" max="30" step="1" value="10" oninput="runSimulation()" class="w-full h-1.5 bg-slate-700 rounded-lg accent-blue-500">
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span class="text-slate-400">Trading Days:</span>
+                                <span id="lblTradingDays" class="font-bold text-emerald-400 font-mono">10 Days</span>
+                            </div>
+                            <input id="sliderTradingDays" type="range" min="5" max="22" step="1" value="10" oninput="runSimulation()" class="w-full h-1.5 bg-slate-700 rounded-lg accent-emerald-500">
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span class="text-slate-400">Fixed Yield:</span>
+                                <span id="lblFixedYield" class="font-bold text-amber-400 font-mono">8% p.a.</span>
+                            </div>
+                            <input id="sliderFixedYield" type="range" min="4" max="15" step="0.5" value="8" oninput="runSimulation()" class="w-full h-1.5 bg-slate-700 rounded-lg accent-amber-500">
+                        </div>
+                    </div>
+                    <div class="h-56 sm:h-64 relative"><canvas id="projectionChart"></canvas></div>
+                </div>
+
+                <!-- Monthly Summary & Quick Action Card -->
+                <div class="card p-4 flex flex-col justify-between">
+                    <div>
+                        <h2 class="text-xs sm:text-sm font-bold text-white uppercase tracking-wider mb-2">Monthly Journal P&L Quick Entry</h2>
+                        <p class="text-[11px] text-slate-400 mb-3">Add a new month record or edit any balance below live.</p>
+                        
+                        <div class="space-y-2 text-xs">
+                            <div>
+                                <label class="text-slate-400">Month / Period</label>
+                                <input type="text" id="inputNewMonthName" placeholder="e.g. 31-Aug-26" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white font-mono mt-0.5">
+                            </div>
+                            <div>
+                                <label class="text-slate-400">Closing Balance (₹)</label>
+                                <input type="number" step="1" id="inputNewMonthBal" placeholder="e.g. 42755" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white font-mono mt-0.5">
+                            </div>
+                            <div>
+                                <label class="text-slate-400">Fund Added / Injected (₹)</label>
+                                <input type="number" step="1" id="inputNewMonthFund" value="0" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white font-mono mt-0.5">
+                            </div>
+                            <button onclick="addMonthlyRecord()" class="w-full mt-2 py-2 bg-blue-600 hover:bg-blue-500 font-bold text-white rounded-lg transition shadow-md shadow-blue-600/30">
+                                + Save Month Record
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="pt-3 border-t border-slate-800 text-[11px] text-slate-400 mt-3">
+                        <span>Current Month Scalping Cumulative: </span>
+                        <strong id="txtCurrentMonthTradesPnl" class="text-emerald-400 font-mono">+₹2,755.00</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Editable Monthly Journal Table -->
+            <div class="card p-4 sm:p-5 space-y-3">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                        <h2 class="text-xs sm:text-sm font-bold text-white uppercase tracking-wider">Live Monthly Trading Journal & Balance History</h2>
+                        <p class="text-[11px] text-slate-400">All columns are editable. Scalping journal cumulative profits sync automatically into the active month!</p>
+                    </div>
+                    <span class="px-2 py-0.5 text-[10px] font-mono bg-blue-500/10 text-blue-400 rounded-md border border-blue-500/20">Click any value to edit</span>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-slate-300 large-table">
+                        <thead class="bg-slate-800/60 text-slate-400 uppercase tracking-wider border-b border-slate-800">
+                            <tr>
+                                <th class="px-4">Month</th>
+                                <th class="px-4 text-right">Balance (Click to Edit)</th>
+                                <th class="px-4 text-right">Fund Added (Edit)</th>
+                                <th class="px-4 text-right">Net P/L</th>
+                                <th class="px-4 text-right">Profit %</th>
+                                <th class="px-4 text-center">Status</th>
+                                <th class="px-3 text-center">Act</th>
+                            </tr>
+                        </thead>
+                        <tbody id="monthlyJournalTableBody" class="divide-y divide-slate-800/60 font-mono"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: HOLDINGS & ASSETS (CLEANED) -->
+        <div id="tab-portfolio" class="hidden space-y-3">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-3">
+                <div class="card p-4 sm:p-5 flex flex-col justify-between">
+                    <h2 class="text-xs sm:text-sm font-bold text-white uppercase tracking-wider">Asset Allocation</h2>
+                    <!-- Increased Chart Size for Tab 3 -->
+                    <div class="h-72 sm:h-96 relative my-auto"><canvas id="portfolioAllocChart"></canvas></div>
+                    <div class="text-center text-xs text-slate-400 pt-2 border-t border-slate-800">
+                        Net Worth: <strong id="txtNetWorthSummary" class="text-emerald-400 font-mono"></strong>
+                    </div>
+                </div>
+
+                <div class="card p-4 sm:p-5 lg:col-span-2">
+                    <div class="flex flex-wrap items-center justify-between mb-3 gap-2 border-b border-slate-800 pb-2">
+                        <div>
+                            <h2 class="text-base sm:text-lg font-bold text-white uppercase tracking-wider">Holdings & Assets</h2>
+                            <p class="text-[11px] text-slate-400 mt-1">Click on any <span class="text-blue-400 font-semibold">Value, Invested, or Platform</span> to edit live!</p>
+                        </div>
+                        <span class="px-2 py-0.5 text-[10px] font-mono bg-emerald-500/10 text-emerald-400 rounded-md border border-emerald-500/20">Live Editable Table</span>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm text-slate-300 large-table">
+                            <thead class="bg-slate-800/60 text-slate-400 uppercase border-b border-slate-800">
+                                <tr>
+                                    <th class="px-4">Asset</th>
+                                    <th class="px-4">Platform (Edit)</th>
+                                    <th class="px-4 text-right">Invested (Edit)</th>
+                                    <th class="px-4 text-right">Current Val (Edit)</th>
+                                    <th class="px-4 text-right">P/L</th>
+                                    <th class="px-4 text-right">Growth %</th>
+                                </tr>
+                            </thead>
+                            <tbody id="detailedHoldingsTableBody" class="divide-y divide-slate-800/60 font-mono"></tbody>
+                            <tfoot id="detailedHoldingsTableFoot" class="bg-slate-900/90 font-mono font-bold border-t-2 border-slate-700"></tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 4: KNOWLEDGE & BOOKS -->
+        <div id="tab-library" class="hidden space-y-3">
+            <div class="card p-5 border-indigo-500/30 bg-slate-900 shadow-2xl">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-sm font-bold text-white">Personal PDF Library</h2>
+                    <label class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl cursor-pointer">
+                        Add PDF Book <input type="file" id="pdfFileInput" accept="application/pdf" class="hidden" multiple />
+                    </label>
+                </div>
+                <div id="userDocumentGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3"></div>
+            </div>
+        </div>
+
+        <!-- TAB 5: CHECKLIST -->
+        <div id="tab-checklist" class="hidden space-y-3">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-3">
+                <div class="card p-5 space-y-3">
+                    <h2 class="text-sm font-bold text-blue-400 uppercase">Core Scalping Rules</h2>
+                    <div class="space-y-3 text-xs text-slate-300">
+                        <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800">
+                            <strong class="text-rose-400">Strict 4 – 7 INR Stop Loss:</strong>
+                            <p class="text-slate-400 mt-1">Maximum risk capped at ₹520 – ₹910 per trade. Never average down.</p>
+                        </div>
+                        <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800">
+                            <strong class="text-emerald-400">Targets: 5 – 6 – 9 – 13+ INR:</strong>
+                            <p class="text-slate-400 mt-1">Book 50% at T1 (+5), trail SL to cost.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card p-5 space-y-3">
+                    <div class="flex items-center justify-between text-emerald-400">
+                        <h2 class="text-sm font-bold text-white uppercase">Pre-Trade Checklist</h2>
+                        <span id="checklistScore" class="text-xs font-mono font-bold">0/5</span>
+                    </div>
+                    <div class="space-y-2 text-xs text-slate-300" id="checklistContainer">
+                        <label class="flex items-center gap-3 p-2.5 bg-slate-900/60 rounded-xl border border-slate-800 cursor-pointer hover:bg-slate-900">
+                            <input type="checkbox" onchange="updateChecklist()" class="w-4 h-4 rounded text-blue-600 bg-slate-800 border-slate-700"><span>1. Trend confirmed on 3-Min EMA / VWAP setup</span>
+                        </label>
+                        <label class="flex items-center gap-3 p-2.5 bg-slate-900/60 rounded-xl border border-slate-800 cursor-pointer hover:bg-slate-900">
+                            <input type="checkbox" onchange="updateChecklist()" class="w-4 h-4 rounded text-blue-600 bg-slate-800 border-slate-700"><span>2. Stop loss strictly defined before entry (4–7 pts max)</span>
+                        </label>
+                        <label class="flex items-center gap-3 p-2.5 bg-slate-900/60 rounded-xl border border-slate-800 cursor-pointer hover:bg-slate-900">
+                            <input type="checkbox" onchange="updateChecklist()" class="w-4 h-4 rounded text-blue-600 bg-slate-800 border-slate-700"><span>3. Strike price is ATM / near ITM with liquid volume</span>
+                        </label>
+                        <label class="flex items-center gap-3 p-2.5 bg-slate-900/60 rounded-xl border border-slate-800 cursor-pointer hover:bg-slate-900">
+                            <input type="checkbox" onchange="updateChecklist()" class="w-4 h-4 rounded text-blue-600 bg-slate-800 border-slate-700"><span>4. Position sized strictly to 2 Lots (130 Quantity)</span>
+                        </label>
+                        <label class="flex items-center gap-3 p-2.5 bg-slate-900/60 rounded-xl border border-slate-800 cursor-pointer hover:bg-slate-900">
+                            <input type="checkbox" onchange="updateChecklist()" class="w-4 h-4 rounded text-blue-600 bg-slate-800 border-slate-700"><span>5. Emotional discipline check: No FOMO / Revenge</span>
+                        </label>
+                    </div>
+                </div>
+                <!-- Trading Notepad -->
+                <div class="card p-5 flex flex-col shadow-xl">
+                    <div class="flex items-center justify-between mb-3">
+                        <h2 class="text-sm font-bold text-white uppercase">Trading Notepad</h2>
+                        <button onclick="showToast('Notes saved!')" class="px-2 py-1 bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold rounded">Save</button>
+                    </div>
+                    <textarea id="tradingNotes" oninput="state.notes = this.value; saveState();" class="w-full flex-1 bg-slate-900/60 border border-slate-800 rounded-xl p-3 text-sm text-slate-300 font-mono resize-none focus:outline-none focus:border-blue-500 transition min-h-[250px]" placeholder="Type your daily observations, psychological state, or setup notes here..."></textarea>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal: Trade Entry with Default Calcs -->
+    <div id="tradeModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="card p-5 max-w-md w-full border-blue-500/40 space-y-4 shadow-2xl">
+            <div class="flex justify-between pb-2 border-b border-slate-800">
+                <h3 class="text-sm font-bold text-white uppercase">Log Trade</h3>
+                <button onclick="closeTradeModal()" class="text-slate-400 hover:text-white">&times;</button>
+            </div>
+            <form id="tradeForm" onsubmit="handleTradeSubmit(event)" class="space-y-3 text-xs">
+                <div class="grid grid-cols-2 gap-2">
+                    <div><label class="text-slate-400">Date</label><input type="date" id="inputTradeDate" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-white font-mono mt-0.5"></div>
+                    <div><label class="text-slate-400">Direction</label><select id="inputTradeDir" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-white font-mono mt-0.5"><option>BUY</option><option>SELL</option></select></div>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div><label class="text-slate-400">Strike</label><input type="text" id="inputTradeStrike" value="NIFTY CE" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-white font-mono mt-0.5"></div>
+                    <div><label class="text-slate-400">Quantity</label><input type="number" id="inputTradeQty" value="130" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-white font-mono mt-0.5"></div>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                    <div><label class="text-slate-400">Entry (₹)</label><input type="number" step="0.05" id="inputTradeEntry" oninput="updateTradeDefaults()" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-white font-mono mt-0.5"></div>
+                    <div><label class="text-slate-400">Exit (₹)</label><input type="number" step="0.05" id="inputTradeExit" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-white font-mono mt-0.5"></div>
+                    <div><label class="text-slate-400">SL (₹)</label><input type="number" step="0.05" id="inputTradeSL" required class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-white font-mono mt-0.5"></div>
+                </div>
+                <div class="grid grid-cols-1">
+                    <div><label class="text-slate-400">Total Charges (Brokerage + Taxes ₹)</label><input type="number" step="1" id="inputTradeCharges" value="40" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-white font-mono mt-0.5"></div>
+                </div>
+                <div class="pt-2 flex gap-2">
+                    <button type="submit" class="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 font-bold text-white rounded-lg">Save & Sync</button>
+                    <button type="button" onclick="closeTradeModal()" class="px-4 py-2 bg-slate-800 text-slate-300 rounded-lg">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let fileHandle = null;
+        let equityChartInst = null;
+        let varianceChartInst = null;
+        let projectionChartInst = null;
+        let portfolioAllocChartInst = null;
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMsg').innerText = msg;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 2500);
+        }
+
+        function parseCleanNumber(val) {
+            if (val === null || val === undefined || val === "") return 0;
+            if (typeof val === "number") return val;
+            const str = String(val).trim();
+            const isNegative = str.includes('-') || (str.startsWith('(') && str.endsWith(')'));
+            const cleaned = str.replace(/[^0-9.]+/g, "");
+            const num = parseFloat(cleaned);
+            if (isNaN(num)) return 0;
+            return isNegative ? -num : num;
+        }
+
+        const DEFAULT_STATE = {
+            startingCapital: 40000,
+            milestoneTarget: 80000,
+            customPools: null,
+            customProjected: null,
+            manualWeeklyProfit: null,
+            notes: "",
+            manualOffsets: { pnl: 0, winCount: 0, lossCount: 0, winPts: 0 },
+            trades: [
+                { date: "31-08-2026", strike: "NIFTY CE", direction: "BUY", qty: 130, entry: 135.0, sl: 131.0, exit: 141.0, charges: 40.0 },
+                { date: "01-09-2026", strike: "NIFTY CE", direction: "BUY", qty: 130, entry: 156.0, sl: 145.0, exit: 161.0, charges: 40.0 },
+                { date: "02-09-2026", strike: "NIFTY CE", direction: "BUY", qty: 130, entry: 145.0, sl: 140.0, exit: 156.0, charges: 40.0 }
+            ],
+            holdings: [
+                { asset: "Mutual Fund", broker: "Paytm money", invested: 5000, current: 6000 },
+                { asset: "Stocks & ETF", broker: "Mstock", invested: 15000, current: 0 },
+                { asset: "Crypto", broker: "CoinDCX", invested: 1500, current: 1800 },
+                { asset: "Trading Cash", broker: "Mstock", invested: 20000, current: 20000 },
+                { asset: "Cash Reserve", broker: "-", invested: 5000, current: 0 }
+            ],
+            monthlyJournal: [
+                { date: "31-Jul-21", balance: 14993.0, fundAdded: 0.0 }
+            ]
+        };
+
+        let state = JSON.parse(localStorage.getItem('nifty50_state_master')) || DEFAULT_STATE;
+        if (!state.manualOffsets) state.manualOffsets = { pnl: 0, winCount: 0, lossCount: 0, winPts: 0 };
+        
+        function saveState() { localStorage.setItem('nifty50_state_master', JSON.stringify(state)); }
+
+        // Live KPI Editing
+        function editKPI(key) {
+            let val;
+            if (key === 'startCap') {
+                val = prompt("Edit Starting Capital (₹):", state.startingCapital);
+                if (val !== null) {
+                    state.startingCapital = parseCleanNumber(val);
+                    state.customPools = null; 
+                    state.customProjected = null; 
+                }
+            } else if (key === 'target') {
+                alert("Target Goal is automatically set to 2X your Starting Capital. Edit Starting Capital to change this.");
+            } else if (key === 'activeBal') {
+                val = prompt("Edit Live Active Balance (₹):", document.getElementById('kpiActiveBal').innerText.replace(/[^0-9.-]+/g,""));
+                if (val !== null) {
+                    const m = calculateMetrics();
+                    state.startingCapital = parseCleanNumber(val) - m.totalNetPnl;
+                    state.customPools = null;
+                }
+            } else if (key === 'pnl') {
+                val = prompt("Edit Realized Net P&L (₹):", document.getElementById('kpiRealizedPnl').innerText.replace(/[^0-9.-]+/g,""));
+                if (val !== null) {
+                    const basePnl = state.trades.reduce((sum, t) => sum + ((t.exit - t.entry) * t.qty - (t.charges || 40)), 0);
+                    state.manualOffsets.pnl = parseCleanNumber(val) - basePnl;
+                }
+            } else if (key === 'weekly') {
+                val = prompt("Edit Weekly Scalping Profit (₹):", document.getElementById('kpiWeeklyProfit').innerText.replace(/[^0-9.-]+/g,""));
+                if (val !== null) {
+                    state.manualWeeklyProfit = parseCleanNumber(val);
+                }
+            } else if (key === 'winRate' || key === 'avgPts') {
+                alert("This is dynamically calculated from your Trade Log. Please edit your trades or P&L offset.");
+                return;
+            }
+            saveState(); updateUI(); showToast("Updated!");
+        }
+
+        // Edit Pools Individually (40% / 50% / 10%)
+        function editPool(type) {
+            if (!state.customPools) {
+                state.customPools = {
+                    trading: state.startingCapital * 0.40,
+                    fixed: state.startingCapital * 0.50,
+                    reserve: state.startingCapital * 0.10
+                };
+            }
+            const current = state.customPools[type];
+            const val = prompt(`Edit ${type.toUpperCase()} Pool (₹):`, current);
+            if (val !== null) {
+                state.customPools[type] = parseCleanNumber(val);
+                saveState(); updateUI(); showToast(`${type.toUpperCase()} Pool Updated!`);
+            }
+        }
+
+        // Edit Projected Annual Trading or Fixed
+        function editProjected(type) {
+            if (!state.customProjected) {
+                state.customProjected = {
+                    trading: state.startingCapital * 0.10 * 12,
+                    fixed: state.startingCapital * 0.50 * 0.08
+                };
+            }
+            const current = state.customProjected[type];
+            const val = prompt(`Edit Projected Annual ${type.toUpperCase()} (₹):`, current);
+            if (val !== null) {
+                state.customProjected[type] = parseCleanNumber(val);
+                saveState(); updateUI(); showToast("Projected Annual Value Updated!");
+            }
+        }
+
+        function updateTradeDefaults() {
+            const entry = parseFloat(document.getElementById('inputTradeEntry').value);
+            if (!isNaN(entry)) {
+                document.getElementById('inputTradeExit').value = (entry + 9).toFixed(2);
+                document.getElementById('inputTradeSL').value = (entry - 4).toFixed(2);
+            }
+        }
+
+        function openTradeModal() {
+            document.getElementById('inputTradeDate').value = new Date().toISOString().slice(0,10);
+            document.getElementById('tradeModal').classList.remove('hidden');
+        }
+        function closeTradeModal() { document.getElementById('tradeModal').classList.add('hidden'); }
+
+        function handleTradeSubmit(e) {
+            e.preventDefault();
+            const rawDate = document.getElementById('inputTradeDate').value;
+            const formattedDate = `${rawDate.split('-')[2]}-${rawDate.split('-')[1]}-${rawDate.split('-')[0]}`;
+            state.trades.push({
+                date: formattedDate,
+                strike: document.getElementById('inputTradeStrike').value.toUpperCase(),
+                direction: document.getElementById('inputTradeDir').value,
+                qty: parseFloat(document.getElementById('inputTradeQty').value) || 130,
+                entry: parseFloat(document.getElementById('inputTradeEntry').value) || 0,
+                exit: parseFloat(document.getElementById('inputTradeExit').value) || 0,
+                sl: parseFloat(document.getElementById('inputTradeSL').value) || 0,
+                charges: parseFloat(document.getElementById('inputTradeCharges').value) || 40
+            });
+            saveState(); updateUI(); closeTradeModal(); showToast("Trade logged!");
+        }
+
+        function deleteTrade(index) {
+            if(confirm("Delete trade?")) { state.trades.splice(index, 1); saveState(); updateUI(); }
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('[id^="tab-"]').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(tabId).classList.remove('hidden');
+            document.getElementById('nav-' + tabId.replace('tab-', '')).classList.add('active');
+            if (tabId === 'tab-planning') runSimulation();
+            if (tabId === 'tab-portfolio') renderPortfolioCharts();
+        }
+
+        function calculateWeeklyProfit() {
+            if (state.manualWeeklyProfit !== null && state.manualWeeklyProfit !== undefined) {
+                return state.manualWeeklyProfit;
+            }
+            let weeklySum = 0;
+            const count = Math.min(7, state.trades.length);
+            for (let i = state.trades.length - count; i < state.trades.length; i++) {
+                if (state.trades[i]) {
+                    const pts = state.trades[i].exit - state.trades[i].entry;
+                    const net = (pts * state.trades[i].qty) - (state.trades[i].charges || 40);
+                    weeklySum += net;
+                }
+            }
+            return weeklySum;
+        }
+
+        function calculateMetrics() {
+            let totalNetPnl = state.manualOffsets.pnl || 0;
+            let winCount = state.manualOffsets.winCount || 0;
+            let lossCount = state.manualOffsets.lossCount || 0;
+            let winPtsTotal = state.manualOffsets.winPts || 0;
+
+            state.trades.forEach(t => {
+                const pts = t.exit - t.entry;
+                const netPnl = (pts * t.qty) - (t.charges || 40);
+                t.pointsCaught = pts; t.netPnl = netPnl;
+                totalNetPnl += netPnl;
+                if (netPnl > 0) { winCount++; winPtsTotal += pts; } else if (netPnl < 0) { lossCount++; }
+            });
+
+            const totalTrades = winCount + lossCount;
+            const activeBalance = state.startingCapital + totalNetPnl;
+            state.milestoneTarget = state.startingCapital * 2; // Auto 2x Target
+            return {
+                totalNetPnl, activeBalance,
+                winRate: totalTrades > 0 ? (winCount / totalTrades) * 100 : 0,
+                winCount, lossCount,
+                avgWinPts: winCount > 0 ? (winPtsTotal / winCount) : 0,
+                remainingMilestone: state.milestoneTarget - activeBalance,
+                growthPct: state.startingCapital > 0 ? ((activeBalance - state.startingCapital) / state.startingCapital) * 100 : 0
+            };
+        }
+
+        function updateUI() {
+            const m = calculateMetrics();
+            const weeklyPnl = calculateWeeklyProfit();
+
+            document.getElementById('kpiStartingCap').innerText = '₹' + state.startingCapital.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+            document.getElementById('kpiActiveBal').innerText = '₹' + m.activeBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+            document.getElementById('kpiActiveBalGrowth').innerText = `${m.growthPct >= 0 ? '+' : ''}${m.growthPct.toFixed(2)}% Growth`;
+            document.getElementById('kpiRealizedPnl').innerText = `${m.totalNetPnl >= 0 ? '+' : ''}₹${m.totalNetPnl.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+            document.getElementById('kpiTargetPacing').innerText = `${((m.totalNetPnl / 4000) * 100).toFixed(1)}% of ₹4k Target`;
+            document.getElementById('kpiWinRate').innerText = `${m.winRate.toFixed(1)}%`;
+            document.getElementById('kpiTradeStats').innerText = `${m.winCount} Win / ${m.lossCount} Loss`;
+            document.getElementById('kpiAvgWinPts').innerText = `+${m.avgWinPts.toFixed(2)} Pts`;
+            
+            const remEl = document.getElementById('kpiMilestoneRemaining');
+            if (m.remainingMilestone > 0) {
+                remEl.innerText = '₹' + m.remainingMilestone.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+                remEl.className = "editable-kpi text-rose-500 font-bold";
+            } else {
+                remEl.innerText = '+₹' + Math.abs(m.remainingMilestone).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+                remEl.className = "editable-kpi text-emerald-400 font-bold";
+            }
+
+            document.getElementById('kpiTargetFull').innerText = 'Goal: ₹' + state.milestoneTarget.toLocaleString('en-IN');
+
+            if (document.getElementById('kpiWeeklyProfit')) {
+                document.getElementById('kpiWeeklyProfit').innerText = (weeklyPnl >= 0 ? '+' : '') + '₹' + weeklyPnl.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+                document.getElementById('kpiWeeklyTradesInfo').innerText = `From ${state.trades.length} Scalping Trades in Journal`;
+            }
+
+            const poolTrading = state.customPools ? state.customPools.trading : (state.startingCapital * 0.40);
+            const poolFixed = state.customPools ? state.customPools.fixed : (state.startingCapital * 0.50);
+            const poolReserve = state.customPools ? state.customPools.reserve : (state.startingCapital * 0.10);
+
+            if (document.getElementById('calcRotationPool')) {
+                document.getElementById('calcRotationPool').innerText = '₹' + poolTrading.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+                document.getElementById('calcFixedPool').innerText = '₹' + poolFixed.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+                document.getElementById('calcReservePool').innerText = '₹' + poolReserve.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+            }
+
+            const projTrading = state.customProjected ? state.customProjected.trading : (state.startingCapital * 0.10 * 12);
+            const projFixed = state.customProjected ? state.customProjected.fixed : (state.startingCapital * 0.50 * 0.08);
+            const totalProj = projTrading + projFixed;
+            const totalRoiPct = state.startingCapital > 0 ? (totalProj / state.startingCapital) * 100 : 124.0;
+
+            if (document.getElementById('planBaseCapLabel')) {
+                document.getElementById('planBaseCapLabel').innerText = '₹' + state.startingCapital.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+                document.getElementById('projAnnualTrading').innerText = '₹' + projTrading.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+                document.getElementById('projAnnualFixed').innerText = '₹' + projFixed.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+                document.getElementById('projTotalROI').innerText = `${totalRoiPct.toFixed(1)}% (₹${totalProj.toLocaleString('en-IN', { minimumFractionDigits: 2 })})`;
+            }
+
+            if (document.getElementById('txtCurrentMonthTradesPnl')) {
+                document.getElementById('txtCurrentMonthTradesPnl').innerText = `${m.totalNetPnl >= 0 ? '+' : ''}₹${m.totalNetPnl.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+            }
+
+            renderTradeTable(); 
+            renderTradingCharts(); 
+            renderPortfolioCharts(); 
+            renderMonthlyJournal();
+        }
+
+        function renderTradeTable() {
+            const filterDir = document.getElementById('filterDirection').value;
+            const tbody = document.getElementById('tradeLogTableBody');
+            tbody.innerHTML = '';
+            state.trades.forEach((t, i) => {
+                if (filterDir !== 'ALL' && t.direction !== filterDir) return;
+                const isWin = t.netPnl >= 0;
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-800/40 transition">
+                        <td class="px-4 whitespace-nowrap">${t.date}</td>
+                        <td class="px-4 text-white font-semibold whitespace-nowrap">${t.strike}</td>
+                        <td class="px-4"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${t.direction === 'BUY' ? 'bg-blue-500/20 text-blue-400' : 'bg-amber-500/20 text-amber-400'}">${t.direction}</span></td>
+                        <td class="px-4 text-right">${t.qty}</td>
+                        <td class="px-4 text-right">₹${t.entry.toFixed(2)}</td>
+                        <td class="px-4 text-right text-rose-400">₹${t.sl.toFixed(2)}</td>
+                        <td class="px-4 text-right text-emerald-400 font-bold">₹${t.exit.toFixed(2)}</td>
+                        <td class="px-4 text-right font-bold ${t.pointsCaught >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${t.pointsCaught >= 0 ? '+' : ''}${t.pointsCaught.toFixed(2)}</td>
+                        <td class="px-4 text-right text-slate-400">₹${(t.charges || 40).toFixed(0)}</td>
+                        <td class="px-4 text-right font-bold ${t.netPnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${t.netPnl >= 0 ? '+' : ''}₹${t.netPnl.toFixed(2)}</td>
+                        <td class="px-4 text-center"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${isWin ? 'badge-win' : 'badge-loss'}">${isWin ? 'WIN' : 'LOSS'}</span></td>
+                        <td class="px-3 text-center"><button onclick="deleteTrade(${i})" class="text-rose-400 font-bold text-lg hover:scale-110">&times;</button></td>
+                    </tr>`;
+            });
+        }
+
+        function applyFilters() { renderTradeTable(); }
+
+        function renderTradingCharts() {
+            let cumulative = state.manualOffsets.pnl || 0;
+            const labels = ['Start', ...state.trades.map(t => t.date)];
+            const dataPoints = [cumulative, ...state.trades.map(t => { cumulative += t.netPnl; return cumulative; })];
+
+            const ctxEq = document.getElementById('equityChart').getContext('2d');
+            if (equityChartInst) equityChartInst.destroy();
+            equityChartInst = new Chart(ctxEq, {
+                type: 'line', data: { labels, datasets: [
+                    { label: 'Cumulative P&L (₹)', data: dataPoints, borderColor: '#3B82F6', backgroundColor: 'rgba(59, 130, 246, 0.12)', fill: true, tension: 0.35, borderWidth: 2.5, pointRadius: 3 },
+                    { label: 'Target (₹4k)', data: labels.map(() => 4000), borderColor: '#10B981', borderDash: [5, 5], borderWidth: 1.5, pointRadius: 0 }
+                ]}, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#64748B', font: {size: 9} } }, y: { ticks: { color: '#64748B', font: {size: 9} } } } }
+            });
+
+            const ctxVar = document.getElementById('dailyVarianceChart').getContext('2d');
+            if (varianceChartInst) varianceChartInst.destroy();
+            varianceChartInst = new Chart(ctxVar, {
+                type: 'bar', data: { labels: state.trades.map(t => t.date), datasets: [
+                    { data: state.trades.map(t => t.netPnl), backgroundColor: state.trades.map(t => t.netPnl >= 400 ? '#10B981' : (t.netPnl > 0 ? '#3B82F6' : '#EF4444')), borderRadius: 4 },
+                    { type: 'line', data: state.trades.map(() => 400), borderColor: '#F59E0B', borderDash: [4, 4], borderWidth: 1.5, pointRadius: 0 }
+                ]}, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { color: '#64748B', font: {size: 9} } }, y: { ticks: { color: '#64748B', font: {size: 9} } } } }
+            });
+        }
+
+        // Render Portfolio Holdings Table WITH Closing Balance Row
+        function renderPortfolioCharts() {
+            let totalInvested = 0;
+            let totalCurrent = 0;
+            const hBody = document.getElementById('detailedHoldingsTableBody');
+            const hFoot = document.getElementById('detailedHoldingsTableFoot');
+            
+            if (hBody) {
+                hBody.innerHTML = '';
+                
+                state.holdings = state.holdings.filter(h => h.asset.toLowerCase() !== 'holdings' && !h.asset.toLowerCase().includes('closing balance'));
+
+                let sub1Invested = 0; let sub1Current = 0;
+                let sub2Invested = 0; let sub2Current = 0;
+
+                state.holdings.forEach((h, i) => {
+                    totalInvested += h.invested;
+                    totalCurrent += h.current;
+                    
+                    if (i < 3) {
+                        sub1Invested += h.invested;
+                        sub1Current += h.current;
+                    } else {
+                        sub2Invested += h.invested;
+                        sub2Current += h.current;
+                    }
+
+                    const pl = h.current - h.invested;
+                    const growth = h.invested > 0 ? ((h.current - h.invested) / h.invested) * 100 : 0;
+                    
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-slate-800/40 transition font-mono";
+                    tr.innerHTML = `
+                        <td class="py-4 px-3 font-sans font-medium text-white">${h.asset}</td>
+                        <td class="py-4 px-3 text-slate-400 font-sans">
+                            <span onclick="editHoldingBroker(${i})" class="editable-cell text-slate-300 underline decoration-dashed cursor-pointer" title="Click to edit Platform">${h.broker} ✏️</span>
+                        </td>
+                        <td class="py-4 px-3 text-right">
+                            <span onclick="editHoldingInvested(${i})" class="editable-cell text-slate-300 underline decoration-dashed cursor-pointer" title="Click to edit Invested">₹${h.invested.toLocaleString('en-IN', {minimumFractionDigits:2})} ✏️</span>
+                        </td>
+                        <td class="py-4 px-3 text-right font-bold text-white">
+                            <span onclick="editHoldingValue(${i})" class="editable-cell text-blue-400 underline decoration-dashed cursor-pointer" title="Click to edit value">₹${h.current.toLocaleString('en-IN', {minimumFractionDigits:2})} ✏️</span>
+                        </td>
+                        <td class="py-4 px-3 text-right font-bold ${pl > 0 ? 'text-emerald-400' : (pl < 0 ? 'text-rose-400' : 'text-slate-400')}">${pl > 0 ? '+' : ''}₹${pl.toLocaleString('en-IN', {minimumFractionDigits:2})}</td>
+                        <td class="py-4 px-3 text-right font-bold ${growth > 0 ? 'text-emerald-400' : (growth < 0 ? 'text-rose-400' : 'text-slate-400')}">${growth > 0 ? '+' : ''}${growth.toFixed(2)}%</td>
+                    `;
+                    hBody.appendChild(tr);
+
+                    if (i === 2) {
+                        const sub1PL = sub1Current - sub1Invested;
+                        const sub1Growth = sub1Invested > 0 ? (sub1PL / sub1Invested) * 100 : 0;
+                        const sub1Row = document.createElement('tr');
+                        sub1Row.className = "bg-blue-900/20 font-bold border-y border-blue-500/30 text-blue-300";
+                        sub1Row.innerHTML = `
+                            <td class="py-2 px-3 uppercase text-[10px] font-sans">Subtotal (Assets)</td>
+                            <td class="py-2 px-3">-</td>
+                            <td class="py-2 px-3 text-right">₹${sub1Invested.toLocaleString('en-IN', {minimumFractionDigits:2})}</td>
+                            <td class="py-2 px-3 text-right">₹${sub1Current.toLocaleString('en-IN', {minimumFractionDigits:2})}</td>
+                            <td class="py-2 px-3 text-right ${sub1PL >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${sub1PL >= 0 ? '+' : ''}₹${sub1PL.toLocaleString('en-IN', {minimumFractionDigits:2})}</td>
+                            <td class="py-2 px-3 text-right ${sub1Growth >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${sub1Growth >= 0 ? '+' : ''}${sub1Growth.toFixed(2)}%</td>
+                        `;
+                        hBody.appendChild(sub1Row);
+                    }
+                });
+
+                if (state.holdings.length > 3) {
+                    const sub2PL = sub2Current - sub2Invested;
+                    const sub2Growth = sub2Invested > 0 ? (sub2PL / sub2Invested) * 100 : 0;
+                    const sub2Row = document.createElement('tr');
+                    sub2Row.className = "bg-amber-900/20 font-bold border-y border-amber-500/30 text-amber-300";
+                    sub2Row.innerHTML = `
+                        <td class="py-2 px-3 uppercase text-[10px] font-sans">Subtotal (Cash)</td>
+                        <td class="py-2 px-3">-</td>
+                        <td class="py-2 px-3 text-right">₹${sub2Invested.toLocaleString('en-IN', {minimumFractionDigits:2})}</td>
+                        <td class="py-2 px-3 text-right">₹${sub2Current.toLocaleString('en-IN', {minimumFractionDigits:2})}</td>
+                        <td class="py-2 px-3 text-right ${sub2PL >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${sub2PL >= 0 ? '+' : ''}₹${sub2PL.toLocaleString('en-IN', {minimumFractionDigits:2})}</td>
+                        <td class="py-2 px-3 text-right ${sub2Growth >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${sub2Growth >= 0 ? '+' : ''}${sub2Growth.toFixed(2)}%</td>
+                    `;
+                    hBody.appendChild(sub2Row);
+                }
+
+                const totalPL = totalCurrent - totalInvested;
+                const totalGrowth = totalInvested > 0 ? (totalPL / totalInvested) * 100 : 0;
+                if (hFoot) {
+                    hFoot.innerHTML = `
+                        <tr>
+                            <td class="py-5 px-3 font-sans text-white text-sm uppercase">Closing Balance / Total</td>
+                            <td class="py-5 px-3 text-slate-400 font-sans">-</td>
+                            <td class="py-5 px-3 text-right text-white">₹${totalInvested.toLocaleString('en-IN', {minimumFractionDigits:2})}</td>
+                            <td class="py-5 px-3 text-right text-emerald-400 text-sm">₹${totalCurrent.toLocaleString('en-IN', {minimumFractionDigits:2})}</td>
+                            <td class="py-5 px-3 text-right ${totalPL >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${totalPL >= 0 ? '+' : ''}₹${totalPL.toLocaleString('en-IN', {minimumFractionDigits:2})}</td>
+                            <td class="py-5 px-3 text-right ${totalGrowth >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${totalGrowth >= 0 ? '+' : ''}${totalGrowth.toFixed(2)}%</td>
+                        </tr>
+                    `;
+                }
+            }
+
+            const txtNetWorth = document.getElementById('txtNetWorthSummary');
+            if (txtNetWorth) txtNetWorth.innerText = '₹' + totalCurrent.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+
+            const canvas = document.getElementById('portfolioAllocChart');
+            if (!canvas) return;
+            const ctxAlloc = canvas.getContext('2d');
+            if (portfolioAllocChartInst) portfolioAllocChartInst.destroy();
+            portfolioAllocChartInst = new Chart(ctxAlloc, {
+                type: 'doughnut', data: {
+                    labels: state.holdings.map(h => h.asset),
+                    datasets: [{
+                        data: state.holdings.map(h => h.current > 0 ? h.current : h.invested),
+                        backgroundColor: ['#3B82F6', '#10B981', '#6366F1', '#EC4899', '#F59E0B'], borderWidth: 0
+                    }]
+                }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#94A3B8', font: { size: 9 } } } }, cutout: '68%' }
+            });
+        }
+
+        function editHoldingValue(index) {
+            const current = state.holdings[index].current;
+            const newVal = prompt(`Enter new Current Value for ${state.holdings[index].asset}:`, current);
+            if (newVal !== null) {
+                state.holdings[index].current = parseCleanNumber(newVal);
+                saveState(); updateUI(); showToast(`Updated ${state.holdings[index].asset}!`);
+            }
+        }
+
+        function editHoldingBroker(index) {
+            const current = state.holdings[index].broker;
+            const newVal = prompt(`Enter new Platform/Account for ${state.holdings[index].asset}:`, current);
+            if (newVal !== null) {
+                state.holdings[index].broker = newVal.trim();
+                saveState(); updateUI(); showToast(`Updated Platform!`);
+            }
+        }
+
+        function editHoldingInvested(index) {
+            const current = state.holdings[index].invested;
+            const newVal = prompt(`Enter new Amount Invested for ${state.holdings[index].asset}:`, current);
+            if (newVal !== null) {
+                state.holdings[index].invested = parseCleanNumber(newVal);
+                saveState(); updateUI(); showToast(`Updated Invested Amount!`);
+            }
+        }
+
+        // Live Monthly Journal Renderer with Cumulative Sync & Editing
+        function renderMonthlyJournal() {
+            const tbody = document.getElementById('monthlyJournalTableBody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            let prevBal = state.startingCapital;
+            state.monthlyJournal.forEach((m, idx) => {
+                const bal = m.balance || 0;
+                const fund = m.fundAdded || 0;
+                let pnl = 0; let pct = 0;
+                if (idx === 0) {
+                    pnl = bal - prevBal - fund;
+                    pct = prevBal > 0 ? (pnl / prevBal) * 100 : 0;
+                } else {
+                    const lastBal = state.monthlyJournal[idx-1].balance || prevBal;
+                    pnl = bal > 0 ? (bal - lastBal - fund) : 0;
+                    pct = lastBal > 0 && bal > 0 ? (pnl / lastBal) * 100 : 0;
+                }
+                const isTargetHit = bal >= state.milestoneTarget;
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-800/40 transition";
+                tr.innerHTML = `
+                    <td class="py-2.5 px-3 font-sans font-medium text-white whitespace-nowrap"><span onclick="editMonthlyDate(${idx})" class="editable-cell cursor-pointer" title="Click to rename">${m.date}</span></td>
+                    <td class="py-2.5 px-3 text-right"><span onclick="editMonthlyBalance(${idx})" class="editable-cell text-blue-400 underline decoration-dashed cursor-pointer font-bold" title="Click to edit Balance">₹${bal > 0 ? bal.toLocaleString('en-IN', {minimumFractionDigits:2}) : '0.00'} ✏️</span></td>
+                    <td class="py-2.5 px-3 text-right"><span onclick="editMonthlyFund(${idx})" class="editable-cell text-slate-300 underline decoration-dashed cursor-pointer" title="Click to edit Fund Added">₹${fund.toLocaleString('en-IN', {minimumFractionDigits:2})} ✏️</span></td>
+                    <td class="py-2.5 px-3 text-right font-bold ${pnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${bal > 0 ? (pnl >= 0 ? '+' : '') + '₹' + pnl.toLocaleString('en-IN', {minimumFractionDigits:2}) : '-'}</td>
+                    <td class="py-2.5 px-3 text-right font-bold ${pct >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${bal > 0 ? (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%' : '-'}</td>
+                    <td class="py-2.5 px-3 text-center font-sans"><span class="px-2 py-0.5 rounded-full text-[9px] font-bold ${isTargetHit ? 'badge-win' : 'bg-slate-800 text-slate-400 border border-slate-700'}">${isTargetHit ? '🎯 2x HIT' : (idx+1) + '/12 Mo'}</span></td>
+                    <td class="py-2.5 px-2 text-center"><button onclick="deleteMonthlyRecord(${idx})" class="text-rose-400 font-bold hover:scale-110">&times;</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function editMonthlyBalance(index) {
+            const current = state.monthlyJournal[index].balance || 0;
+            const newVal = prompt(`Enter closing Balance for ${state.monthlyJournal[index].date}:`, current);
+            if (newVal !== null) { state.monthlyJournal[index].balance = parseCleanNumber(newVal); saveState(); updateUI(); showToast("Balance Updated!"); }
+        }
+
+        function editMonthlyFund(index) {
+            const current = state.monthlyJournal[index].fundAdded || 0;
+            const newVal = prompt(`Enter Fund Added for ${state.monthlyJournal[index].date}:`, current);
+            if (newVal !== null) { state.monthlyJournal[index].fundAdded = parseCleanNumber(newVal); saveState(); updateUI(); showToast("Fund Updated!"); }
+        }
+
+        function editMonthlyDate(index) {
+            const current = state.monthlyJournal[index].date;
+            const newVal = prompt(`Rename Month / Date:`, current);
+            if (newVal) { state.monthlyJournal[index].date = newVal.trim(); saveState(); updateUI(); }
+        }
+
+        function addMonthlyRecord() {
+            const date = document.getElementById('inputNewMonthName').value.trim() || `Month ${state.monthlyJournal.length + 1}`;
+            const bal = parseCleanNumber(document.getElementById('inputNewMonthBal').value) || 0;
+            const fund = parseCleanNumber(document.getElementById('inputNewMonthFund').value) || 0;
+            state.monthlyJournal.push({ date, balance: bal, fundAdded: fund });
+            saveState(); updateUI(); showToast("Month Record Added!");
+            document.getElementById('inputNewMonthName').value = ''; document.getElementById('inputNewMonthBal').value = '';
+        }
+
+        function deleteMonthlyRecord(index) {
+            if (confirm("Delete this month record?")) { state.monthlyJournal.splice(index, 1); saveState(); updateUI(); }
+        }
+
+        function runSimulation() {
+            const monthlyPct = parseFloat(document.getElementById('sliderMonthlyPct').value) / 100;
+            const fixedRate = parseFloat(document.getElementById('sliderFixedYield').value) / 100;
+
+            document.getElementById('lblMonthlyTargetPct').innerText = (monthlyPct * 100).toFixed(0) + '%';
+            document.getElementById('lblTradingDays').innerText = document.getElementById('sliderTradingDays').value + ' Days';
+            document.getElementById('lblFixedYield').innerText = (fixedRate * 100).toFixed(1) + '% p.a.';
+
+            const baseCap = state.startingCapital;
+            const tradingProfitMo = baseCap * monthlyPct;
+            const fixedIncomeMo = (baseCap * 0.50 * fixedRate) / 12;
+
+            let labels = ['Start'];
+            let simBalances = [baseCap];
+
+            if (state.monthlyJournal.length > 0) {
+                state.monthlyJournal.forEach(mj => {
+                    labels.push(mj.date);
+                    simBalances.push(mj.balance > 0 ? mj.balance : baseCap);
+                });
+            } else {
+                let cur = baseCap;
+                for (let m = 1; m <= 12; m++) {
+                    labels.push('M' + m);
+                    cur += (tradingProfitMo + fixedIncomeMo);
+                    simBalances.push(cur);
+                }
+            }
+
+            const ctxProj = document.getElementById('projectionChart').getContext('2d');
+            if (projectionChartInst) projectionChartInst.destroy();
+
+            projectionChartInst = new Chart(ctxProj, {
+                type: 'line', data: { labels: labels, datasets: [
+                    { label: 'Cumulative Balance (₹)', data: simBalances, borderColor: '#10B981', backgroundColor: 'rgba(16, 185, 129, 0.12)', fill: true, tension: 0.35, borderWidth: 2.5, pointBackgroundColor: '#34D399', pointRadius: 3 },
+                    { label: 'Goal (₹80k)', data: labels.map(() => state.milestoneTarget), borderColor: '#F59E0B', borderDash: [5, 5], borderWidth: 1.5, fill: false, pointRadius: 0 }
+                ]}, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#94A3B8', font: { size: 9 } } } }, scales: { x: { ticks: { color: '#64748B', font: { size: 8, family: 'JetBrains Mono' } } }, y: { ticks: { color: '#64748B', font: { size: 8 }, callback: v => '₹' + v } } } }
+            });
+        }
+
+        // Checklist 5 Items
+        function updateChecklist() {
+            const cb = document.querySelectorAll('#checklistContainer input[type="checkbox"]');
+            let checked = 0; cb.forEach(c => { if(c.checked) checked++; });
+            const lbl = document.getElementById('checklistScore');
+            lbl.innerText = `${checked}/5 Checked`;
+            lbl.className = checked === 5 ? 'text-xs font-mono font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20' : 'text-xs font-mono font-bold text-amber-400';
+        }
+
+        // Excel Upload & Export logic
+        document.getElementById('masterExcelInput').addEventListener('change', async function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const arrayBuffer = await file.arrayBuffer();
+            const data = new Uint8Array(arrayBuffer);
+            const workbook = XLSX.read(data, { type: 'array', cellDates: false });
+
+            const tradeSheet = workbook.SheetNames.find(s => s.toLowerCase().includes("daily") || s.toLowerCase().includes("trading"));
+            if (tradeSheet && workbook.Sheets[tradeSheet]) {
+                const rawTradeData = XLSX.utils.sheet_to_json(workbook.Sheets[tradeSheet], { header: 1, defval: "", raw: true });
+                const parsedTrades = [];
+                let hIdx = 8;
+                for (let i = 0; i < Math.min(15, rawTradeData.length); i++) {
+                    if (rawTradeData[i] && rawTradeData[i].some(cell => String(cell).toLowerCase().includes("entry"))) { hIdx = i; break; }
+                }
+                for (let r = hIdx + 1; r < rawTradeData.length; r++) {
+                    const row = rawTradeData[r];
+                    if (!row || !row[0]) continue;
+                    const entry = parseCleanNumber(row[5]);
+                    const exit = parseCleanNumber(row[10]);
+                    if (entry > 0 && exit > 0) {
+                        parsedTrades.push({
+                            date: row[0] ? (typeof row[0] === "number" ? formatExcelDate(row[0]) : String(row[0])) : `T-${r}`,
+                            strike: String(row[2] || "NIFTY CE"), direction: String(row[3] || "BUY"),
+                            qty: parseCleanNumber(row[4]) || 130, entry: entry, sl: parseCleanNumber(row[6]) || (entry-4),
+                            exit: exit, brokerage: parseCleanNumber(row[13]) || 15, taxes: parseCleanNumber(row[14]) || 20
+                        });
+                    }
+                }
+                if (parsedTrades.length > 0) state.trades = parsedTrades;
+            }
+
+            const invSheet = workbook.SheetNames.find(s => s.toLowerCase().includes("invest") || s.toLowerCase().includes("holdings"));
+            if (invSheet && workbook.Sheets[invSheet]) {
+                const rawHoldings = XLSX.utils.sheet_to_json(workbook.Sheets[invSheet], { header: 1, defval: "", raw: true });
+                const parsedHoldings = [];
+                let sRow = 4;
+                for (let i = 0; i < Math.min(10, rawHoldings.length); i++) {
+                    if (rawHoldings[i] && String(rawHoldings[i][0]).toLowerCase().includes('holdings')) { sRow = i + 1; break; }
+                }
+                for (let r = sRow; r < rawHoldings.length; r++) {
+                    const row = rawHoldings[r];
+                    if (!row || !row[0]) continue;
+                    const asset = String(row[0]).trim();
+                    if (asset.toLowerCase() === 'holdings' || asset.toLowerCase().includes('closing')) continue;
+                    parsedHoldings.push({ asset: asset, broker: row[1] || "-", invested: parseCleanNumber(row[2]), current: parseCleanNumber(row[3]) });
+                }
+                if (parsedHoldings.length > 0) state.holdings = parsedHoldings;
+            }
+
+            const monSheet = workbook.SheetNames.find(s => s.toLowerCase().includes("monthly"));
+            if (monSheet && workbook.Sheets[monSheet]) {
+                const rawMonthly = XLSX.utils.sheet_to_json(workbook.Sheets[monSheet], { header: 1, defval: "", raw: true });
+                const parsedMonthly = [];
+                let mStart = 4;
+                for (let i = 0; i < Math.min(10, rawMonthly.length); i++) {
+                    if (rawMonthly[i] && String(rawMonthly[i][0]).toLowerCase().includes('date')) { mStart = i + 1; break; }
+                }
+                for (let r = mStart; r < rawMonthly.length; r++) {
+                    const row = rawMonthly[r];
+                    if (!row || !row[0]) continue;
+                    parsedMonthly.push({ date: String(row[0]).trim(), balance: parseCleanNumber(row[1]), fundAdded: parseCleanNumber(row[2]) });
+                }
+                if (parsedMonthly.length > 0) state.monthlyJournal = parsedMonthly;
+            }
+
+            saveState(); updateUI(); showToast("Excel data synced!");
+        });
+
+        function formatExcelDate(rawDate) {
+            const utc_days = Math.floor(rawDate - 25569);
+            const dateObj = new Date(utc_days * 86400 * 1000);
+            return `${String(dateObj.getDate()).padStart(2, '0')}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${dateObj.getFullYear()}`;
+        }
+
+        function exportFullExcel() {
+            const wb = XLSX.utils.book_new();
+            const tData = [["Date", "Strike", "Direction", "Qty", "Entry", "SL", "Exit", "Pts", "Charges", "Net P&L"]];
+            state.trades.forEach(t => tData.push([t.date, t.strike, t.direction, t.qty, t.entry, t.sl, t.exit, t.pointsCaught, t.charges||40, t.netPnl]));
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(tData), "DailyTrading Log");
+
+            const hData = [["Holdings", "Account name", "Amount invested", "Current value", "P/L", "Growth %"]];
+            state.holdings.forEach(h => hData.push([h.asset, h.broker, h.invested, h.current, h.current - h.invested, h.invested>0 ? (h.current-h.invested)/h.invested : 0]));
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(hData), "Investment");
+
+            const mData = [["Date", "Balance", "FUND ADDED", "NET P/L", "Profit %"]];
+            state.monthlyJournal.forEach(m => mData.push([m.date, m.balance, m.fundAdded, "", ""]));
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(mData), "Monthly");
+
+            const poolT = state.customPools ? state.customPools.trading : (state.startingCapital * 0.40);
+            const poolF = state.customPools ? state.customPools.fixed : (state.startingCapital * 0.50);
+            const poolR = state.customPools ? state.customPools.reserve : (state.startingCapital * 0.10);
+            const planData = [
+                ["Particulars", "Amount / Rate", "Formula / Rule Reference"],
+                ["Investment Capital", state.startingCapital, "N (Base Capital)"],
+                ["Utilisation Capital for Rotation", poolT, "40% of N"],
+                ["Monthly Profit", state.startingCapital * 0.10, "10% of N"],
+                ["Yearly Return from Rotation", state.startingCapital * 0.10 * 12, "Monthly Profit × 12"],
+                ["Cash Reserve", poolR, "10% of N"],
+                ["Remaining Capital for Fixed Income", poolF, "50% of N"],
+                ["Fixed Yearly Income", poolF * 0.08, "8% per year"],
+                ["Total Yearly Return", (state.startingCapital * 0.10 * 12) + (poolF * 0.08), "Total Annual Return"],
+                ["Overall Yearly Return % on N", 1.24, "124% p.a."]
+            ];
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(planData), "Return on Trades & Investments");
+
+            XLSX.writeFile(wb, `NIFTY50_Hub_${new Date().toISOString().slice(0,10)}.xlsx`);
+            showToast("Downloaded Excel!");
+        }
+
+        // Motivational Quotes
+        const motivationalQuotes = [
+            { quote: "The goal of a successful trader is to make the best trades. Money is secondary.", author: "Alexander Elder" },
+            { quote: "In trading, you have to accept the risk completely before taking the trade.", author: "Mark Douglas" },
+            { quote: "Amateurs focus on how much they can make. Professionals focus on how much they can lose.", author: "Paul Tudor Jones" }
+        ];
+        let quoteIndex = 0;
+        function nextQuote() {
+            quoteIndex = (quoteIndex + 1) % motivationalQuotes.length;
+            document.getElementById('quoteText').innerText = `"${motivationalQuotes[quoteIndex].quote}"`;
+            document.getElementById('quoteAuthor').innerText = `— ${motivationalQuotes[quoteIndex].author}`;
+        }
+
+        // PDF Offline Vault
+        const DB_NAME = 'TraderVaultDB'; const DB_VERSION = 1; let db;
+        function initIndexedDB() {
+            const request = indexedDB.open(DB_NAME, DB_VERSION);
+            request.onsuccess = (e) => { db = e.target.result; loadSavedDocuments(); };
+            request.onupgradeneeded = (e) => {
+                db = e.target.result;
+                if (!db.objectStoreNames.contains('documents')) db.createObjectStore('documents', { keyPath: 'id', autoIncrement: true });
+            };
+        }
+        document.getElementById('pdfFileInput').addEventListener('change', function(e) {
+            const files = e.target.files;
+            if (!files || files.length === 0) return;
+            for (let i = 0; i < files.length; i++) {
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    const docObj = { name: files[i].name, size: (files[i].size / 1024).toFixed(1) + ' KB', data: evt.target.result };
+                    const tx = db.transaction(['documents'], 'readwrite');
+                    tx.objectStore('documents').add(docObj);
+                    tx.oncomplete = () => loadSavedDocuments();
+                };
+                reader.readAsDataURL(files[i]);
+            }
+        });
+        function loadSavedDocuments() {
+            if (!db) return;
+            const tx = db.transaction(['documents'], 'readonly');
+            const req = tx.objectStore('documents').getAll();
+            req.onsuccess = () => {
+                const docs = req.result;
+                const grid = document.getElementById('userDocumentGrid');
+                grid.innerHTML = '';
+                if (!docs || docs.length === 0) {
+                    grid.innerHTML = `<div class="col-span-full p-4 text-center rounded-xl border border-dashed border-slate-800 text-slate-500">No PDF books uploaded yet.</div>`;
+                    return;
+                }
+                docs.forEach(doc => {
+                    grid.innerHTML += `<div class="p-3 bg-slate-900/90 rounded-xl border border-slate-800 flex justify-between gap-2">
+                        <div class="truncate"><p class="text-xs font-bold text-white truncate">${doc.name}</p><p class="text-[9px] text-slate-400">${doc.size}</p></div>
+                        <div class="flex gap-1">
+                            <button onclick="downloadDoc(${doc.id})" class="p-1 bg-indigo-600/20 text-indigo-300 rounded hover:bg-indigo-600 hover:text-white">📥</button>
+                            <button onclick="deleteDoc(${doc.id})" class="p-1 bg-rose-500/10 text-rose-400 rounded hover:bg-rose-600 hover:text-white">&times;</button>
+                        </div></div>`;
+                });
+            };
+        }
+        function downloadDoc(id) {
+            db.transaction(['documents'], 'readonly').objectStore('documents').get(id).onsuccess = (e) => {
+                const doc = e.target.result;
+                if (!doc) return;
+                const a = document.createElement('a'); a.href = doc.data; a.download = doc.name; a.click();
+            };
+        }
+        function deleteDoc(id) {
+            if (confirm("Delete document?")) {
+                db.transaction(['documents'], 'readwrite').objectStore('documents').delete(id).oncomplete = () => loadSavedDocuments();
+            }
+        }
+        function downloadSummary(title, content) {
+            const blob = new Blob([`=== ${title.toUpperCase()} ===\n\n${content}`], { type: 'text/plain' });
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${title.replace(/\s+/g, '_')}_Summary.txt`; a.click();
+        }
+
+        window.onload = function() { 
+            if(state.notes) document.getElementById('tradingNotes').value = state.notes;
+            updateUI(); runSimulation(); initIndexedDB(); 
+        };
+    </script>
+</body>
+</html>
